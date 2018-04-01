@@ -13,6 +13,9 @@ public class MyColis {
         this.colis = colis;
         this.client = client;
     }
+    public MyColis(Colis colis) {
+        this.colis = colis;
+    }
 
     public Colis getColis() {
         return colis;
@@ -28,5 +31,13 @@ public class MyColis {
 
     public void setClient(Client client) {
         this.client = client;
+    }
+
+    @Override
+    public String toString() {
+        return "MyColis{" +
+                "colis=" + colis +
+                ", client=" + client +
+                '}';
     }
 }

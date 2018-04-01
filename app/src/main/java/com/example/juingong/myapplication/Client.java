@@ -26,4 +26,12 @@ public class Client {
     public void setNom(String nom) {
         this.nom = nom;
     }
+
+    @Override
+    public String toString() {
+        return "Client{" +
+                "adresse='" + adresse + '\'' +
+                ", nom='" + nom + '\'' +
+                '}';
+    }
 }

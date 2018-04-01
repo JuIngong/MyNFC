@@ -62,7 +62,7 @@ public class MainActivity extends AppCompatActivity
     FirebaseDatabase database;
     DatabaseReference myRef;
     Livreur livreur;
-    List<MyColis> colis = new ArrayList<>();
+    List<MyColis> colisL = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,11 +74,10 @@ public class MainActivity extends AppCompatActivity
         tvNFCContent = (TextView) findViewById(R.id.nfc_contents);
         message = (TextView) findViewById(R.id.edit_message);
         btnWrite = (Button) findViewById(R.id.button);
-        btnTest = (Button) findViewById(R.id.button2);
 
 
-         database = FirebaseDatabase.getInstance();
-         myRef = database.getReference();
+        database = FirebaseDatabase.getInstance();
+        myRef = database.getReference();
 
         btnWrite.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -88,13 +87,13 @@ public class MainActivity extends AppCompatActivity
                         Toast.makeText(context, ERROR_DETECTED, Toast.LENGTH_LONG).show();
                     } else {
                         write(message.getText().toString(), myTag);
-                        Toast.makeText(context, WRITE_SUCCESS, Toast.LENGTH_LONG ).show();
+                        Toast.makeText(context, WRITE_SUCCESS, Toast.LENGTH_LONG).show();
                     }
                 } catch (IOException e) {
-                    Toast.makeText(context, WRITE_ERROR, Toast.LENGTH_LONG ).show();
+                    Toast.makeText(context, WRITE_ERROR, Toast.LENGTH_LONG).show();
                     e.printStackTrace();
                 } catch (FormatException e) {
-                    Toast.makeText(context, WRITE_ERROR, Toast.LENGTH_LONG ).show();
+                    Toast.makeText(context, WRITE_ERROR, Toast.LENGTH_LONG).show();
                     e.printStackTrace();
                 }
             }
@@ -107,7 +106,43 @@ public class MainActivity extends AppCompatActivity
                 // This method is called once with the initial value and again
                 // whenever data at this location is updated.
                 livreur = dataSnapshot.getValue(Livreur.class);
-                Log.d("test","Value is: " + livreur.nom);
+                colisL.clear();
+                if (livreur != null && livreur.getColis() != null) {
+                    List<String> stringList = Arrays.asList(livreur.getColis().split(","));
+                    for (String text : stringList) {
+                        myRef.child("colis").child(text).addValueEventListener(new ValueEventListener() {
+                            @Override
+                            public void onDataChange(DataSnapshot dataSnapshot) {
+                                Colis c = dataSnapshot.getValue(Colis.class);
+                                if (c != null && c.client != null) {
+                                    colisL.add(new MyColis(c));
+                                    myRef.child("client").child(c.client).addValueEventListener(new ValueEventListener() {
+                                        @Override
+                                        public void onDataChange(DataSnapshot dataSnapshot) {
+                                            Client cl = dataSnapshot.getValue(Client.class);
+                                            if (cl != null && cl.adresse != null) {
+                                                colisL.add(new MyColis(c, cl));
+                                                Log.d("test", c + " " + cl);
+                                            }
+                                        }
+
+                                        @Override
+                                        public void onCancelled(DatabaseError error) {
+                                            // Failed to read value
+                                            Log.w("test", "Failed to read value.", error.toException());
+                                        }
+                                    });
+                                }
+                            }
+
+                            @Override
+                            public void onCancelled(DatabaseError error) {
+                                // Failed to read value
+                                Log.w("test", "Failed to read value.", error.toException());
+                            }
+                        });
+                    }
+                }
             }
 
             @Override
@@ -128,7 +163,7 @@ public class MainActivity extends AppCompatActivity
         pendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
         IntentFilter tagDetected = new IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED);
         tagDetected.addCategory(Intent.CATEGORY_DEFAULT);
-        writeTagFilters = new IntentFilter[] { tagDetected };
+        writeTagFilters = new IntentFilter[]{tagDetected};
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -172,6 +207,7 @@ public class MainActivity extends AppCompatActivity
             buildTagViews(msgs);
         }
     }
+
     private void buildTagViews(NdefMessage[] msgs) {
         if (msgs == null || msgs.length == 0) return;
 
@@ -190,45 +226,48 @@ public class MainActivity extends AppCompatActivity
         }
 
         // add to database if not exist
-        List<String> stringList = Arrays.asList(livreur.getColis().split(","));
-        final Colis[] colis = new Colis[1];
-        final Client[] client = new Client[1];
-        if(!stringList.contains(text)) {
-            myRef.child("colis").child(text).addValueEventListener(new ValueEventListener() {
-                @Override
-                public void onDataChange(DataSnapshot dataSnapshot) {
-                    // This method is called once with the initial value and again
-                    // whenever data at this location is updated.
-                    colis[0] = dataSnapshot.getValue(Colis.class);
-                    if(colis[0] != null && colis[0].client != null ) {
-                        myRef.child("client").child(colis[0].client).addValueEventListener(new ValueEventListener() {
-                            @Override
-                            public void onDataChange(DataSnapshot dataSnapshot) {
-                                // This method is called once with the initial value and again
-                                // whenever data at this location is updated.
-                                colis[0] = dataSnapshot.getValue(Colis.class);
-                                if(colis[0] != null && colis[0].client != null ) {
-
+        if (livreur != null && livreur.getColis() != null) {
+            List<String> stringList = Arrays.asList(livreur.getColis().split(","));
+            final Colis[] colis = new Colis[1];
+            final Client[] client = new Client[1];
+            if (!stringList.contains(text)) {
+                String finalText = text;
+                myRef.child("colis").child(text).addValueEventListener(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot dataSnapshot) {
+                        // This method is called once with the initial value and again
+                        // whenever data at this location is updated.
+                        colis[0] = dataSnapshot.getValue(Colis.class);
+                        if (colis[0] != null && colis[0].client != null) {
+                            myRef.child("client").child(colis[0].client).addValueEventListener(new ValueEventListener() {
+                                @Override
+                                public void onDataChange(DataSnapshot dataSnapshot) {
+                                    // This method is called once with the initial value and again
+                                    // whenever data at this location is updated.
+                                    client[0] = dataSnapshot.getValue(Client.class);
+                                    if (client[0] != null && client[0].adresse != null) {
+                                        // colisL.add(new MyColis(colis[0], client[0]));
+                                        livreur.setColis(livreur.getColis() + "," + finalText);
+                                        myRef.child("livreur").child("livreur1").setValue(livreur);
+                                    }
                                 }
-                            }
 
-                            @Override
-                            public void onCancelled(DatabaseError error) {
-                                // Failed to read value
-                                Log.w("test", "Failed to read value.", error.toException());
-                            }
-                        });
+                                @Override
+                                public void onCancelled(DatabaseError error) {
+                                    // Failed to read value
+                                    Log.w("test", "Failed to read value.", error.toException());
+                                }
+                            });
+                        }
                     }
-                }
 
-                @Override
-                public void onCancelled(DatabaseError error) {
-                    // Failed to read value
-                    Log.w("test", "Failed to read value.", error.toException());
-                }
-            });
-            livreur.setColis(livreur.getColis() + "," + text);
-            myRef.child("livreur").child("livreur1").setValue(livreur);
+                    @Override
+                    public void onCancelled(DatabaseError error) {
+                        // Failed to read value
+                        Log.w("test", "Failed to read value.", error.toException());
+                    }
+                });
+            }
         }
     }
 
@@ -236,19 +275,19 @@ public class MainActivity extends AppCompatActivity
     protected void onNewIntent(Intent intent) {
         setIntent(intent);
         readFromIntent(intent);
-        if (NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())){
+        if (NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) {
             myTag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
         }
     }
 
     @Override
-    public void onPause(){
+    public void onPause() {
         super.onPause();
         WriteModeOff();
     }
 
     @Override
-    public void onResume(){
+    public void onResume() {
         super.onResume();
         WriteModeOn();
     }
@@ -257,14 +296,15 @@ public class MainActivity extends AppCompatActivity
     /******************************************************************************
      **********************************Enable Write********************************
      ******************************************************************************/
-    private void WriteModeOn(){
+    private void WriteModeOn() {
         writeMode = true;
         nfcAdapter.enableForegroundDispatch(this, pendingIntent, writeTagFilters, null);
     }
+
     /******************************************************************************
      **********************************Disable Write*******************************
      ******************************************************************************/
-    private void WriteModeOff(){
+    private void WriteModeOff() {
         writeMode = false;
         nfcAdapter.disableForegroundDispatch(this);
     }
@@ -274,7 +314,7 @@ public class MainActivity extends AppCompatActivity
      **********************************Write to NFC Tag****************************
      ******************************************************************************/
     private void write(String text, Tag tag) throws IOException, FormatException {
-        NdefRecord[] records = { createRecord(text) };
+        NdefRecord[] records = {createRecord(text)};
         NdefMessage message = new NdefMessage(records);
         // Get an instance of Ndef for the tag.
         Ndef ndef = Ndef.get(tag);
@@ -285,22 +325,23 @@ public class MainActivity extends AppCompatActivity
         // Close the connection
         ndef.close();
     }
+
     private NdefRecord createRecord(String text) throws UnsupportedEncodingException {
-        String lang       = "en";
-        byte[] textBytes  = text.getBytes();
-        byte[] langBytes  = lang.getBytes("US-ASCII");
-        int    langLength = langBytes.length;
-        int    textLength = textBytes.length;
-        byte[] payload    = new byte[1 + langLength + textLength];
+        String lang = "en";
+        byte[] textBytes = text.getBytes();
+        byte[] langBytes = lang.getBytes("US-ASCII");
+        int langLength = langBytes.length;
+        int textLength = textBytes.length;
+        byte[] payload = new byte[1 + langLength + textLength];
 
         // set status byte (see NDEF spec for actual bits)
         payload[0] = (byte) langLength;
 
         // copy langbytes and textbytes into payload
-        System.arraycopy(langBytes, 0, payload, 1,              langLength);
+        System.arraycopy(langBytes, 0, payload, 1, langLength);
         System.arraycopy(textBytes, 0, payload, 1 + langLength, textLength);
 
-        NdefRecord recordNFC = new NdefRecord(NdefRecord.TNF_WELL_KNOWN,  NdefRecord.RTD_TEXT,  new byte[0], payload);
+        NdefRecord recordNFC = new NdefRecord(NdefRecord.TNF_WELL_KNOWN, NdefRecord.RTD_TEXT, new byte[0], payload);
 
         return recordNFC;
     }
@@ -340,7 +381,7 @@ public class MainActivity extends AppCompatActivity
     @SuppressWarnings("StatementWithEmptyBody")
     @Override
     public boolean onNavigationItemSelected(MenuItem item) {
-        ViewFlipper vf = (ViewFlipper)findViewById(R.id.vf);
+        ViewFlipper vf = (ViewFlipper) findViewById(R.id.vf);
         // Handle navigation view item clicks here.
         int id = item.getItemId();
         if (id == R.id.nav_gallery) {

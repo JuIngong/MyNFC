@@ -35,4 +35,13 @@ public class Colis {
     public void setClient(String client) {
         this.client = client;
     }
+
+    @Override
+    public String toString() {
+        return "Colis{" +
+                "etat='" + etat + '\'' +
+                ", position='" + position + '\'' +
+                ", client='" + client + '\'' +
+                '}';
+    }
 }
