@@ -3,7 +3,8 @@
     package="com.example.juingong.myapplication">
 
     <uses-permission android:name="android.permission.NFC" />
-    <uses-permission android:name="android.permission.NFC" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
 
     <application
         android:allowBackup="true"

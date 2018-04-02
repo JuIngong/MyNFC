@@ -4,6 +4,8 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.location.Location;
 import android.nfc.FormatException;
 import android.nfc.NdefMessage;
 import android.nfc.NdefRecord;
@@ -11,9 +13,11 @@ import android.nfc.NfcAdapter;
 import android.nfc.Tag;
 import android.nfc.tech.Ndef;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Parcelable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 import android.view.View;
 import android.support.design.widget.NavigationView;
@@ -24,11 +28,17 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewFlipper;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -39,6 +49,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity
@@ -57,12 +68,15 @@ public class MainActivity extends AppCompatActivity
     TextView tvNFCContent;
     TextView message;
     Button btnWrite;
-    Button btnTest;
+    ListView listView;
+    ItemAdapter adapter;
 
     FirebaseDatabase database;
     DatabaseReference myRef;
     Livreur livreur;
     List<MyColis> colisL = new ArrayList<>();
+
+    private FusedLocationProviderClient mFusedLocationClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,6 +88,9 @@ public class MainActivity extends AppCompatActivity
         tvNFCContent = (TextView) findViewById(R.id.nfc_contents);
         message = (TextView) findViewById(R.id.edit_message);
         btnWrite = (Button) findViewById(R.id.button);
+
+        listView = (ListView) findViewById(R.id.list);
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
 
         database = FirebaseDatabase.getInstance();
@@ -99,6 +116,9 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
+        adapter = new ItemAdapter(this, R.layout.list_colis, colisL);
+        listView.setAdapter(adapter);
+
 
         myRef.child("livreur/livreur1").addValueEventListener(new ValueEventListener() {
             @Override
@@ -110,19 +130,19 @@ public class MainActivity extends AppCompatActivity
                 if (livreur != null && livreur.getColis() != null) {
                     List<String> stringList = Arrays.asList(livreur.getColis().split(","));
                     for (String text : stringList) {
-                        myRef.child("colis").child(text).addValueEventListener(new ValueEventListener() {
+                        myRef.child("colis").child(text).addListenerForSingleValueEvent(new ValueEventListener() {
                             @Override
                             public void onDataChange(DataSnapshot dataSnapshot) {
                                 Colis c = dataSnapshot.getValue(Colis.class);
                                 if (c != null && c.client != null) {
-                                    colisL.add(new MyColis(c));
-                                    myRef.child("client").child(c.client).addValueEventListener(new ValueEventListener() {
+                                    myRef.child("client").child(c.client).addListenerForSingleValueEvent(new ValueEventListener() {
                                         @Override
                                         public void onDataChange(DataSnapshot dataSnapshot) {
                                             Client cl = dataSnapshot.getValue(Client.class);
                                             if (cl != null && cl.adresse != null) {
-                                                colisL.add(new MyColis(c, cl));
+                                                colisL.add(new MyColis(c, cl, text));
                                                 Log.d("test", c + " " + cl);
+                                                adapter.notifyDataSetChanged();
                                             }
                                         }
 
@@ -152,6 +172,7 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
+        blink();
         nfcAdapter = NfcAdapter.getDefaultAdapter(this);
         if (nfcAdapter == null) {
             // Stop here, we definitely need NFC
@@ -168,14 +189,6 @@ public class MainActivity extends AppCompatActivity
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -186,6 +199,50 @@ public class MainActivity extends AppCompatActivity
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
+    }
+
+    private void blink() {
+        final Handler handler = new Handler();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                int timeToBlink = 600000;
+                try {
+                    Thread.sleep(timeToBlink);
+                } catch (Exception e) {
+                }
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+
+                        if (ActivityCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                            // TODO: Consider calling
+                            //    ActivityCompat#requestPermissions
+                            // here to request the missing permissions, and then overriding
+                            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                            //                                          int[] grantResults)
+                            // to handle the case where the user grants the permission. See the documentation
+                            // for ActivityCompat#requestPermissions for more details.
+                            return;
+                        }
+                        mFusedLocationClient.getLastLocation()
+                                .addOnSuccessListener(MainActivity.this, location -> {
+                                    if (location != null) {
+                                        String position = location.getLatitude()+ ","+location.getLongitude();
+                                        for(MyColis c : colisL){
+                                            if(!c.colis.etat.equals("Colis livré")){
+                                                c.getColis().setPosition(position);
+                                                myRef.child("colis").child(c.getKey()).setValue(c.getColis());
+                                            }
+                                        }
+                                    }
+                                });
+
+
+                    }
+                });
+            }
+        }).start();
     }
 
     /******************************************************************************
@@ -232,21 +289,20 @@ public class MainActivity extends AppCompatActivity
             final Client[] client = new Client[1];
             if (!stringList.contains(text)) {
                 String finalText = text;
-                myRef.child("colis").child(text).addValueEventListener(new ValueEventListener() {
+                myRef.child("colis").child(text).addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
-                        // This method is called once with the initial value and again
-                        // whenever data at this location is updated.
                         colis[0] = dataSnapshot.getValue(Colis.class);
-                        if (colis[0] != null && colis[0].client != null) {
-                            myRef.child("client").child(colis[0].client).addValueEventListener(new ValueEventListener() {
+                        String k = dataSnapshot.getKey();
+                        if (colis[0] != null && colis[0].client != null && !colis[0].etat.equals("Colis livré")) {
+                            colis[0].etat = "Livraison en cours";
+                            myRef.child("colis").child(k).setValue(colis[0]);
+                            Toast.makeText(context, "Colis " + k + " : livraison en cours !", Toast.LENGTH_LONG).show();
+                            myRef.child("client").child(colis[0].client).addListenerForSingleValueEvent(new ValueEventListener() {
                                 @Override
                                 public void onDataChange(DataSnapshot dataSnapshot) {
-                                    // This method is called once with the initial value and again
-                                    // whenever data at this location is updated.
                                     client[0] = dataSnapshot.getValue(Client.class);
                                     if (client[0] != null && client[0].adresse != null) {
-                                        // colisL.add(new MyColis(colis[0], client[0]));
                                         livreur.setColis(livreur.getColis() + "," + finalText);
                                         myRef.child("livreur").child("livreur1").setValue(livreur);
                                     }
@@ -258,6 +314,65 @@ public class MainActivity extends AppCompatActivity
                                     Log.w("test", "Failed to read value.", error.toException());
                                 }
                             });
+                        }
+                    }
+
+                    @Override
+                    public void onCancelled(DatabaseError error) {
+                        // Failed to read value
+                        Log.w("test", "Failed to read value.", error.toException());
+                    }
+                });
+            }
+            else {
+                myRef.child("colis").child(text).addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot dataSnapshot) {
+                        colis[0] = dataSnapshot.getValue(Colis.class);
+                        String k = dataSnapshot.getKey();
+                        if (colis[0] != null && colis[0].client != null && !colis[0].etat.equals("Colis livré")) {
+                            colis[0].etat = "Colis livré";
+                            for (Iterator<MyColis> iter = colisL.listIterator(); iter.hasNext(); ) {
+                                MyColis a = iter.next();
+                                if (a.getKey().equals(k)) {
+                                    iter.remove();
+                                }
+                            }
+                            adapter.notifyDataSetChanged();
+                            myRef.child("colis").child(k).setValue(colis[0]);
+                            myRef.child("colis").child(k).addListenerForSingleValueEvent(new ValueEventListener() {
+                                @Override
+                                public void onDataChange(DataSnapshot dataSnapshot) {
+                                    Colis c = dataSnapshot.getValue(Colis.class);
+                                    if (c != null && c.client != null) {
+                                        myRef.child("client").child(c.client).addListenerForSingleValueEvent(new ValueEventListener() {
+                                            @Override
+                                            public void onDataChange(DataSnapshot dataSnapshot) {
+                                                Client cl = dataSnapshot.getValue(Client.class);
+                                                if (cl != null && cl.adresse != null) {
+                                                    colisL.add(new MyColis(c, cl, k));
+                                                    Log.d("test", c + " " + cl);
+                                                    adapter.notifyDataSetChanged();
+                                                }
+                                            }
+
+                                            @Override
+                                            public void onCancelled(DatabaseError error) {
+                                                // Failed to read value
+                                                Log.w("test", "Failed to read value.", error.toException());
+                                            }
+                                        });
+                                    }
+                                }
+
+                                @Override
+                                public void onCancelled(DatabaseError error) {
+                                    // Failed to read value
+                                    Log.w("test", "Failed to read value.", error.toException());
+                                }
+                            });
+
+                            Toast.makeText(context, "Colis " + k + " : colis livré !", Toast.LENGTH_LONG).show();
                         }
                     }
 

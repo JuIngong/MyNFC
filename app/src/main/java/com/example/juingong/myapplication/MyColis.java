@@ -6,15 +6,13 @@ package com.example.juingong.myapplication;
 
 public class MyColis {
     Colis colis;
-
+    String key;
     Client client;
 
-    public MyColis(Colis colis, Client client) {
+    public MyColis(Colis colis, Client client, String key) {
         this.colis = colis;
         this.client = client;
-    }
-    public MyColis(Colis colis) {
-        this.colis = colis;
+        this.key = key;
     }
 
     public Colis getColis() {
@@ -31,6 +29,14 @@ public class MyColis {
 
     public void setClient(Client client) {
         this.client = client;
+    }
+
+    public String getKey() {
+        return key;
+    }
+
+    public void setKey(String key) {
+        this.key = key;
     }
 
     @Override
