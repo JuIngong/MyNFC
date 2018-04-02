@@ -206,7 +206,7 @@ public class MainActivity extends AppCompatActivity
         new Thread(new Runnable() {
             @Override
             public void run() {
-                int timeToBlink = 600000;
+                int timeToBlink = 60000;
                 try {
                     Thread.sleep(timeToBlink);
                 } catch (Exception e) {
