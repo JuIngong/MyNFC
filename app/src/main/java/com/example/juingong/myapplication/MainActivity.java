@@ -229,12 +229,16 @@ public class MainActivity extends AppCompatActivity
                                 .addOnSuccessListener(MainActivity.this, location -> {
                                     if (location != null) {
                                         String position = location.getLatitude()+ ","+location.getLongitude();
+                                        int i = 0;
                                         for(MyColis c : colisL){
                                             if(!c.colis.etat.equals("Colis livré")){
+                                                i++;
                                                 c.getColis().setPosition(position);
                                                 myRef.child("colis").child(c.getKey()).setValue(c.getColis());
                                             }
                                         }
+                                        Toast.makeText(context, "Mis à jours de la position : "+ position + ". "+ i + " colis mis-à-jours.", Toast.LENGTH_LONG).show();
+
                                     }
                                 });
 
